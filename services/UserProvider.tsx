@@ -10,6 +10,10 @@ GoogleSignin.configure({
     webClientId: "32938900144-ia6f48568tebrg952p7rrsbd6kfn5m6c.apps.googleusercontent.com"
 });
 
+const getUsersCollection = (month: DateTime.Month) => {
+    return firestore().collection("Months").doc(month.toLocaleString()).collection("Users");
+}
+
 export interface UserController {
     users: User[],
     selfUser: User | undefined,
@@ -25,10 +29,6 @@ export const UserContext = React.createContext<UserController | undefined>(undef
 export default function UserProvider({ children }: { children: React.ReactNode }) {
     const [users, setUsers] = React.useState<User[]>([]);
     const [authInfo, setAuthInfo] = React.useState<FirebaseAuthTypes.User>();
-
-    const getUsersCollection = (month: DateTime.Month) => {
-        return firestore().collection("Months").doc(month.toLocaleString()).collection("Users");
-    }
 
     React.useEffect(() => {
         const unsubscribeFromAuthStatusChanged = auth().onAuthStateChanged((user) => {
@@ -76,22 +76,18 @@ export default function UserProvider({ children }: { children: React.ReactNode }
         });
     }
 
-    const getUsersInMonth = (month: DateTime.Month) => {
-        if (month.equal(DateTime.Month.now)) {
-            return new Promise<User[]>(resolve => { resolve(users) });
-        } else {
-            return getUsersCollection(month).get().then((querySnapshot) => {
-                const users_: User[] = [];
+    const getUsersInMonth = async (month: DateTime.Month) => {
+        return getUsersCollection(month).get().then((querySnapshot) => {
+            const users_: User[] = [];
 
-                querySnapshot.forEach((docSnapshot) => {
-                    const user = userConverter.fromFirestore(docSnapshot);
+            querySnapshot.forEach((docSnapshot) => {
+                const user = userConverter.fromFirestore(docSnapshot);
 
-                    users_.push(user);
-                });
-
-                return users_;
+                users_.push(user);
             });
-        }
+
+            return users_;
+        });
     }
 
     const getPaidStatus = async (month: DateTime.Month) => {
@@ -129,9 +125,13 @@ export async function googleLogin() {
 
     const googleCredential = auth.GoogleAuthProvider.credential(userInfo.idToken);
 
-    return auth().signInWithCredential(googleCredential).then(({ user }) => {
-        firestore().collection("Months").doc(DateTime.Month.now.toLocaleString())
-            .collection("Users").doc(user.uid)
-            .set(userConverter.toFirestore(new User(user.uid, user.displayName!)), { merge: false });
+    const { user } = await auth().signInWithCredential(googleCredential);
+
+    const userDoc = getUsersCollection(DateTime.Month.now).doc(user.uid);
+
+    return userDoc.get().then((docSnapshot) => {
+        if (!docSnapshot.exists) {
+            userDoc.set(userConverter.toFirestore(new User(user.uid, user.displayName!)))
+        }
     });
 };

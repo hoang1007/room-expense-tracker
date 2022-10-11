@@ -18,11 +18,11 @@ export interface ExpenseScreenProps {
 };
 
 interface ExpenseScreenState {
-    paid: boolean,
+    loading: boolean,
     month?: DateTime.Month,
-    selfUser?: User,
+    paid: boolean,
     users: User[],
-    loading: boolean
+    focusUser?: User
 }
 
 class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScreenState> {
@@ -35,25 +35,32 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
         super(props);
 
         this.state = {
+            loading: true,
             paid: false,
-            users: [],
-            month: undefined,
-            selfUser: undefined,
-            loading: true
+            users: []
         }
     }
 
     prepareData = (month: DateTime.Month) => {
         if (this.state.month === undefined || this.state.month.toLocaleString() !== month.toLocaleString()) {
             this.setState({ loading: true })
-            this.context?.getUsersInMonth(month).then((users) => {
-                const selfUser = users.find((u) => u.uid === this.context!.authInfo!.uid);
 
-                this.setState({ selfUser: selfUser, month: month, users: users, loading: false });
-            });
+            if (month.equal(DateTime.Month.now)) {
+                const uid = this.state.focusUser?.uid ?? this.context?.selfUser!.uid;
+                const focusUser = this.context!.users.find((user) => user.uid === uid)!;
+
+                this.setState({ month: month, users: this.context!.users, focusUser: focusUser });
+            } else {
+                this.context?.getUsersInMonth(month).then((users) => {
+                    const uid = this.state.focusUser?.uid ?? this.context?.selfUser!.uid;
+                    const focusUser = users.find((user) => user.uid === uid)!;
+
+                    this.setState({ month: month, users: users, focusUser: focusUser });
+                });
+            }
 
             this.context?.getPaidStatus(month).then((status) => {
-                this.setState({ paid: status })
+                this.setState({ paid: status, loading: false })
             })
         }
     }
@@ -70,6 +77,14 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
         });
 
         this.prepareData(DateTime.Month.now);
+    }
+
+    componentDidUpdate(prevProps: Readonly<ExpenseScreenProps>, prevState: Readonly<ExpenseScreenState>, snapshot?: any): void {
+        // change from context
+        if (this.state.month?.equal(DateTime.Month.now) &&
+            this.state.focusUser?.boughtItems.length != this.context?.selfUser?.boughtItems.length) {
+            this.setState({ users: this.context?.users!, focusUser: this.context?.selfUser });
+        }
     }
 
     componentWillUnmount(): void {
@@ -90,7 +105,7 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
 
             total += sum_
 
-            if (user === this.state.selfUser) {
+            if (user.uid === this.context?.selfUser?.uid) {
                 selfExpense = sum_
             }
         }
@@ -112,7 +127,7 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
     }
 
     getUserItems() {
-        return this.state.selfUser?.boughtItems ?? [];
+        return this.state.focusUser?.boughtItems ?? [];
     }
 
     render() {
@@ -128,9 +143,9 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
                         <ItemListView items={this.getUserItems()} />
                     </ScrollView>
                     {this.state.loading ? null : <UserBottomBar
-                        initialFocusUser={this.state.selfUser!}
+                        initialFocusUser={this.state.focusUser!}
                         users={this.state.users}
-                        onClickUser={(user) => this.setState({ selfUser: user })} />}
+                        onClickUser={(user) => this.setState({ focusUser: user })} />}
                 </View>
             </SafeAreaView>
         );
