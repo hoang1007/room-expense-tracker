@@ -3,6 +3,8 @@ import { DateTime, Item } from "../objects";
 export function groupByDate(items: Item[], keyExtractor: (date: Date) => string) {
     let group: Record<string, Item[]> = {};
 
+    console.log(items);
+
     items.forEach((item) => {
         let key = keyExtractor(item.buyDate);
 

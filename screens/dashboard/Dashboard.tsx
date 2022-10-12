@@ -82,7 +82,7 @@ class DashboardScreen extends React.Component<DashboardProps, DashboardState> {
 
             total += userOutcome;
 
-            if (user.uid) {
+            if (user.uid === this.context?.selfUser?.uid) {
                 selfOutcome += userOutcome;
             }
         });

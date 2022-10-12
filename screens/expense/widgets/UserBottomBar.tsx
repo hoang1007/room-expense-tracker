@@ -18,7 +18,6 @@ let barLayout = {
 const UserBottomBar: React.FC<UserBottomBarProps> = ({
     users, onClickUser, initialFocusUser
 }) => {
-    console.log("bottom", initialFocusUser);
     const [currentUser, setCurrentUser] = React.useState<User>(initialFocusUser);
 
     const renderUser = (user: User) => {

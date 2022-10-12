@@ -60,6 +60,6 @@ const summaryWidgetStyles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-around",
         height: SIZES.WINDOW_HEIGHT * 0.15,
-        width: SIZES.WINDOW_WIDTH * 0.5
+        width: SIZES.WINDOW_WIDTH * 0.6
     }
 });
