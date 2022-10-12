@@ -12,25 +12,33 @@ export interface MonthPickerProps {
     refesh?: boolean;
 };
 
-const MonthPicker: React.FC<MonthPickerProps> = ({
-    onMonthChange, style, refesh
-}) => {
-    const [selectedMonth, setSelectedMonth_] = React.useState(DateTime.Month.now);
+interface MonthPickerState {
+    selectedMonth: DateTime.Month
+}
 
-    const setSelectedMonth = (month: DateTime.Month) => {
-        setSelectedMonth_(month);
+class MonthPicker extends React.Component<MonthPickerProps, MonthPickerState> {
+    constructor(props: MonthPickerProps) {
+        super(props);
 
-        if (onMonthChange) {
-            onMonthChange(month);
+        this.state = {
+            selectedMonth: DateTime.Month.now
         }
     }
 
-    const renderMonthWidget = (month: DateTime.Month) => {
+    setSelectedMonth = (month: DateTime.Month) => {
+        this.setState({ selectedMonth: month });
+
+        if (this.props.onMonthChange) {
+            this.props.onMonthChange(month);
+        }
+    }
+
+    renderMonthWidget = (month: DateTime.Month) => {
         let containerStyle = styles.monthWidgetContainer;
         let monthTextStyle = styles.monthText;
         let monthContainerStyle = styles.monthContainer;
 
-        if (month.equal(selectedMonth)) {
+        if (month.equal(this.state.selectedMonth)) {
             monthContainerStyle = {
                 ...monthContainerStyle,
                 backgroundColor: COLORS.lightBlue,
@@ -48,7 +56,7 @@ const MonthPicker: React.FC<MonthPickerProps> = ({
                 key={month.getMonth()}
                 style={containerStyle}
                 onPress={(event) => {
-                    setSelectedMonth(month);
+                    this.setSelectedMonth(month);
                 }}
             >
                 <View style={monthContainerStyle}>
@@ -60,12 +68,12 @@ const MonthPicker: React.FC<MonthPickerProps> = ({
         );
     }
 
-    const renderYearPicker = () => {
+    renderYearPicker = () => {
         return (
             <View style={styles.yearPickerContainer}>
                 <TouchableOpacity
                     onPress={() => {
-                        setSelectedMonth(selectedMonth.copy({ year: selectedMonth.getYear() - 1 }))
+                        this.setSelectedMonth(this.state.selectedMonth.copy({ year: this.state.selectedMonth.getYear() - 1 }))
                     }}
                     style={styles.forwardYearButton}
                 >
@@ -78,12 +86,12 @@ const MonthPicker: React.FC<MonthPickerProps> = ({
                         alignItems: "center"
                     }}
                 >
-                    <Text style={styles.yearText}>{selectedMonth.getYear()}</Text>
+                    <Text style={styles.yearText}>{this.state.selectedMonth.getYear()}</Text>
                 </View>
 
                 <TouchableOpacity
                     onPress={() => {
-                        setSelectedMonth(selectedMonth.copy({ year: selectedMonth.getYear() + 1 }))
+                        this.setSelectedMonth(this.state.selectedMonth.copy({ year: this.state.selectedMonth.getYear() + 1 }))
                     }}
                     style={styles.forwardYearButton}
                 >
@@ -93,16 +101,16 @@ const MonthPicker: React.FC<MonthPickerProps> = ({
         );
     }
 
-    const createMonthInYear = () => {
+    createMonthInYear = () => {
         let monthInYear: DateTime.Month[] = [];
         for (let i = 1; i <= 12; i++) {
-            monthInYear.push(new DateTime.Month(i, selectedMonth.getYear()));
+            monthInYear.push(new DateTime.Month(i, this.state.selectedMonth.getYear()));
         }
 
         return monthInYear;
     }
 
-    const renderSeparator = () => {
+    renderSeparator = () => {
         return <View style={{
             height: 1,
             backgroundColor: colorWithOpacity(COLORS.white, 0.5),
@@ -111,27 +119,25 @@ const MonthPicker: React.FC<MonthPickerProps> = ({
         }} />
     }
 
-    if (refesh) {
-        setSelectedMonth(DateTime.Month.now);
+    render() {
+        return (
+            <View style={{
+                ...this.props.style,
+                alignItems: "center",
+                marginHorizontal: 5
+            }}>
+                {this.renderYearPicker()}
+                <FlatList
+                    initialScrollIndex={this.state.selectedMonth.getMonth() - 1}
+                    data={this.createMonthInYear()}
+                    renderItem={({ item }) => this.renderMonthWidget(item)}
+                    horizontal={true}
+                    showsHorizontalScrollIndicator={false}
+                />
+                {this.renderSeparator()}
+            </View>
+        );
     }
-
-    return (
-        <View style={{
-            ...style,
-            alignItems: "center",
-            marginHorizontal: 5
-        }}>
-            {renderYearPicker()}
-            <FlatList
-                initialScrollIndex={selectedMonth.getMonth() - 1}
-                data={createMonthInYear()}
-                renderItem={({ item }) => renderMonthWidget(item)}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-            />
-            {renderSeparator()}
-        </View>
-    );
 };
 
 export default MonthPicker;

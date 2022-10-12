@@ -56,25 +56,29 @@ class AddItemsModal extends React.PureComponent<ModalProps, ModalState> {
         this.setState({
             itemIndex: 0,
             itemQuantity: 0,
-            tmpItem: {name: "", price: ""}
+            tmpItem: { name: "", price: "" }
         });
     }
 
     createItem = () => {
-        let newItem = new Item(this.state.tmpItem.name, Number.parseInt(this.state.tmpItem.price), Source.USER);
+        const { name, price } = this.state.tmpItem;
 
-        // if edit mode
-        if (this.state.itemIndex < this.items.length) {
-            this.items[this.state.itemIndex] = newItem;
-        } else { // add mode
-            this.items.push(newItem);
+        if (name.length > 0 && price.length > 0) {
+            let newItem = new Item(name, Number.parseInt(price), Source.USER);
+
+            // if edit mode
+            if (this.state.itemIndex < this.items.length) {
+                this.items[this.state.itemIndex] = newItem;
+            } else { // add mode
+                this.items.push(newItem);
+            }
+
+            this.setState({
+                itemIndex: this.items.length,
+                itemQuantity: this.items.length,
+                tmpItem: { name: "", price: "" }
+            });
         }
-
-        this.setState({
-            itemIndex: this.items.length,
-            itemQuantity: this.items.length,
-            tmpItem: { name: "", price: "" }
-        });
     }
 
     deleteItem = () => {

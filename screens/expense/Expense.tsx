@@ -1,5 +1,5 @@
 import React from "react";
-import { BackHandler, NativeEventSubscription, ScrollView, StatusBar, StyleSheet, View } from "react-native";
+import { BackHandler, NativeEventSubscription, RefreshControl, ScrollView, StatusBar, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PAGES } from "..";
 import { MonthPicker } from "../../components";
@@ -30,6 +30,7 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
     declare context: React.ContextType<typeof UserContext>;
 
     backHanlderSubscriber: NativeEventSubscription | undefined;
+    monthPickerRef: React.RefObject<MonthPicker>;
 
     constructor(props: ExpenseScreenProps) {
         super(props);
@@ -39,29 +40,25 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
             paid: false,
             users: []
         }
+
+        this.monthPickerRef = React.createRef<MonthPicker>();
     }
 
-    prepareData = (month: DateTime.Month) => {
-        if (this.state.month === undefined || this.state.month.toLocaleString() !== month.toLocaleString()) {
-            this.setState({ loading: true })
+    loadData = async (month: DateTime.Month) => {
+        this.setState({loading: true});
 
-            if (month.equal(DateTime.Month.now)) {
-                const uid = this.state.focusUser?.uid ?? this.context?.selfUser!.uid;
-                const focusUser = this.context!.users.find((user) => user.uid === uid)!;
+        try {
+            const users: User[] = await this.context?.getUsersInMonth(month)!;
+            const status = await this.context?.getPaidStatus(month)!;
 
-                this.setState({ month: month, users: this.context!.users, focusUser: focusUser });
-            } else {
-                this.context?.getUsersInMonth(month).then((users) => {
-                    const uid = this.state.focusUser?.uid ?? this.context?.selfUser!.uid;
-                    const focusUser = users.find((user) => user.uid === uid)!;
+            const focusUserUID = this.state.focusUser?.uid ?? this.context?.selfUser?.uid;
 
-                    this.setState({ month: month, users: users, focusUser: focusUser });
-                });
-            }
+            const focusUser = users.find((user) => user.uid === focusUserUID)!;
 
-            this.context?.getPaidStatus(month).then((status) => {
-                this.setState({ paid: status, loading: false })
-            })
+            this.setState({ users: users, focusUser: focusUser, month: month, paid: status, loading: false });
+        } catch (err) {
+            this.setState({loading: false});
+            console.log(err);
         }
     }
 
@@ -76,15 +73,7 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
             }
         });
 
-        this.prepareData(DateTime.Month.now);
-    }
-
-    componentDidUpdate(prevProps: Readonly<ExpenseScreenProps>, prevState: Readonly<ExpenseScreenState>, snapshot?: any): void {
-        // change from context
-        if (this.state.month?.equal(DateTime.Month.now) &&
-            this.state.focusUser?.boughtItems.length != this.context?.selfUser?.boughtItems.length) {
-            this.setState({ users: this.context?.users!, focusUser: this.context?.selfUser });
-        }
+        this.loadData(DateTime.Month.now);
     }
 
     componentWillUnmount(): void {
@@ -105,7 +94,7 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
 
             total += sum_
 
-            if (user.uid === this.context?.selfUser?.uid) {
+            if (user.uid === this.state.focusUser!.uid) {
                 selfExpense = sum_
             }
         }
@@ -135,9 +124,15 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
             <SafeAreaView style={{ flex: 1 }}>
                 <StatusBar barStyle={"light-content"} backgroundColor={COLORS.black} />
                 <View style={outcomeStyles.container}>
-                    <MonthPicker onMonthChange={this.prepareData} />
+                    <MonthPicker ref={this.monthPickerRef} onMonthChange={(month) => this.loadData(month)} />
                     <ScrollView
                         showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl
+                            refreshing={this.state.loading}
+                            onRefresh={() => {
+                                this.monthPickerRef.current?.setSelectedMonth(DateTime.Month.now);
+                            }}
+                        />}
                     >
                         <SummaryWidget {...this.getSummaryInfo()} />
                         <ItemListView items={this.getUserItems()} />
