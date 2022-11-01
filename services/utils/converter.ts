@@ -3,7 +3,7 @@ import {
     FirebaseFirestoreTypes as Types
 } from "@react-native-firebase/firestore";
 import { Source } from "../../objects/item";
-import User from "../../objects/user";
+import User, { UserMetadata } from "../../objects/user";
 import firestore from "@react-native-firebase/firestore";
 
 
@@ -31,10 +31,10 @@ export const userConverter = {
             items: user.getAllItems()
         }
     },
-    fromFirestore(snapshot: Types.QueryDocumentSnapshot): User {
+    fromFirestore(snapshot: Types.QueryDocumentSnapshot, metadata: UserMetadata): User {
         const data = snapshot.data()!;
 
-        const user = new User(snapshot.id, data.name);
+        const user = new User(metadata.uid, metadata.username, metadata.username);
 
         const items: Item[] = data.items.map((itemData: Types.DocumentData) => {
             return new Item(itemData.name, itemData.price, Source.DATABASE, itemData.buyDate.toDate());

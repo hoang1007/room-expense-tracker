@@ -82,7 +82,7 @@ class DashboardScreen extends React.Component<DashboardProps, DashboardState> {
 
             total += userOutcome;
 
-            if (user.uid === this.context?.selfUser?.uid) {
+            if (user.metadata.uid === this.context?.selfUser?.metadata.uid) {
                 selfOutcome += userOutcome;
             }
         });
@@ -98,7 +98,7 @@ class DashboardScreen extends React.Component<DashboardProps, DashboardState> {
         const MAX_ITEMS_REVIEW = 10;
 
         for (let user of this.context!.users) {
-            if (user.uid === this.context!.authInfo?.uid) {
+            if (user.metadata.uid === this.context!.authInfo?.uid) {
                 let items = user.getItemsInMonth(DateTime.Month.now);
 
                 if (items.length > MAX_ITEMS_REVIEW) {

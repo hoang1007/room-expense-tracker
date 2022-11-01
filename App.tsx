@@ -1,6 +1,4 @@
-import { useCallback, useEffect } from 'react';
-import { fontFamily } from './constants/theme';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigation from './navigation/Navigations';
 import UserProvider from './services/UserProvider';
 

@@ -1,15 +1,23 @@
 import { DateTime } from ".";
 import Item from "./item";
 
+
+export interface UserMetadata {
+    username: string,
+    uid: string,
+}
+
+
 class User {
     readonly name: string;
-    readonly uid: string;
+    readonly metadata: UserMetadata;
     boughtItems: Item[];
 
-    constructor(uid: string, name: string) {
-        this.uid = uid;
-        this.name = name;
-        this.boughtItems = [];
+    constructor(uid: string, name: string, username: string | undefined) {
+        this.name = name
+        this.boughtItems = []
+
+        this.metadata = {username: username ?? name, uid: uid}
     }
 
     addItems(...items: Item[]) {

@@ -1,6 +1,6 @@
 import React from "react";
-import User from "../objects/user";
-import firestore, { firebase } from "@react-native-firebase/firestore";
+import User, { UserMetadata } from "../objects/user";
+import firestore from "@react-native-firebase/firestore";
 import { itemConverter, userConverter } from "./utils/converter";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -10,8 +10,13 @@ GoogleSignin.configure({
     webClientId: "32938900144-ia6f48568tebrg952p7rrsbd6kfn5m6c.apps.googleusercontent.com"
 });
 
-const getUsersCollection = (month: DateTime.Month) => {
-    return firestore().collection("Months").doc(month.toLocaleString()).collection("Users");
+
+const getMonthDocument = (month: DateTime.Month) => {
+    return firestore().collection("Months").doc(month.toLocaleString())
+}
+
+const getItemMonthCollection = (month: DateTime.Month) => {
+    return getMonthDocument(month).collection("Users")
 }
 
 export interface UserController {
@@ -29,6 +34,24 @@ export const UserContext = React.createContext<UserController | undefined>(undef
 export default function UserProvider({ children }: { children: React.ReactNode }) {
     const [users, setUsers] = React.useState<User[]>([]);
     const [authInfo, setAuthInfo] = React.useState<FirebaseAuthTypes.User>();
+    const [userMetadata, setUserMetadata] = React.useState<Record<string, UserMetadata>>()
+
+    React.useEffect(() => {
+        firestore().collection("Users").get().then((querySnapshot) => {
+            let userMetadata_: Record<string, UserMetadata> = {}
+
+            querySnapshot.forEach((docSnapshot) => {
+                let uid = docSnapshot.id
+                let username = docSnapshot.get<string>("username")
+
+                userMetadata_[uid] = { username: username, uid: uid }
+            })
+
+            setUserMetadata(userMetadata_)
+        }).catch((err) => {
+            console.error(err);
+        })
+    }, [])
 
     React.useEffect(() => {
         const unsubscribeFromAuthStatusChanged = auth().onAuthStateChanged((user) => {
@@ -46,59 +69,71 @@ export default function UserProvider({ children }: { children: React.ReactNode }
     }, []);
 
     React.useEffect(() => {
-        if (authInfo) {
-            const databaseSubscriber = getUsersCollection(DateTime.Month.now).onSnapshot(
+        if (authInfo && userMetadata) {
+            const databaseSubscriber = getItemMonthCollection(DateTime.Month.now).onSnapshot(
                 (querySnapshot) => {
-                    const newUsers: User[] = [];
+                    const newUsers: User[] = []
 
-                    querySnapshot.forEach((docSnapshot) => {
-                        const user = userConverter.fromFirestore(docSnapshot);
+                    for (let uid in userMetadata) {
+                        const metadata = userMetadata[uid]
 
-                        newUsers.push(user);
-                    });
+                        const docSnapshot = querySnapshot.docs.find(doc => doc.id === metadata.uid)
 
-                    setUsers(newUsers);
+                        if (docSnapshot) {
+                            const user = userConverter.fromFirestore(docSnapshot, metadata)
 
-                    console.log("Loaded new data");
-                },
-                (error) => {
-                    console.error(error);
+                            newUsers.push(user)
+                        } else {
+                            newUsers.push(new User(metadata.uid, metadata.username, metadata.username))
+                        }
+                    }
+
+                    setUsers(newUsers)
+
+                }, (error) => {
+                    console.error(error)
                 }
             )
 
             return databaseSubscriber;
         }
-    }, [authInfo])
+    }, [userMetadata, authInfo])
 
     const addItems = (items: Item[]) => {
-        return getUsersCollection(DateTime.Month.now).doc(authInfo!.uid).update({
+        return getItemMonthCollection(DateTime.Month.now).doc(authInfo!.uid).set({
             items: firestore.FieldValue.arrayUnion(...items.map((item) => itemConverter.toFirestore(item)))
-        });
+        }, { merge: true });
     }
 
     const getUsersInMonth = async (month: DateTime.Month) => {
-        return getUsersCollection(month).get().then((querySnapshot) => {
-            const users_: User[] = [];
+        return getItemMonthCollection(month).get().then((querySnapshot) => {
+            const users_: User[] = []
 
-            querySnapshot.forEach((docSnapshot) => {
-                const user = userConverter.fromFirestore(docSnapshot);
+            for (let uid in userMetadata) {
+                const metadata = userMetadata[uid]
 
-                users_.push(user);
-            });
+                const docSnapshot = querySnapshot.docs.find(doc => doc.id === metadata.uid)
+
+                if (docSnapshot) {
+                    const user = userConverter.fromFirestore(docSnapshot, metadata)
+
+                    users_.push(user)
+                } else {
+                    users_.push(new User(metadata.uid, metadata.username, metadata.username))
+                }
+            }
 
             return users_;
         });
     }
 
     const getPaidStatus = async (month: DateTime.Month) => {
-        const doc = firestore().collection("Months").doc(month.toLocaleString())
-
-        const res = await doc.get();
+        const res = await getMonthDocument(month).get();
         return res.get<boolean>("status");
     }
 
     const setPaidStatus = (month: DateTime.Month, status: boolean) => {
-        return firestore().collection("Months").doc(month.toLocaleString()).set({
+        return getMonthDocument(month).set({
             status: status
         });
     }
@@ -109,7 +144,7 @@ export default function UserProvider({ children }: { children: React.ReactNode }
                 users: users,
                 authInfo: authInfo,
                 addItems: addItems,
-                selfUser: users.find((user) => user.uid === authInfo?.uid),
+                selfUser: users.find((user) => user.metadata.uid === authInfo?.uid),
                 getUsersInMonth: getUsersInMonth,
                 getPaidStatus: getPaidStatus,
                 setPaidStatus: setPaidStatus
@@ -127,11 +162,7 @@ export async function googleLogin() {
 
     const { user } = await auth().signInWithCredential(googleCredential);
 
-    const userDoc = getUsersCollection(DateTime.Month.now).doc(user.uid);
-
-    return userDoc.get().then((docSnapshot) => {
-        if (!docSnapshot.exists) {
-            userDoc.set(userConverter.toFirestore(new User(user.uid, user.displayName!)))
-        }
-    });
+    // return firestore().collection("Users").doc(user.uid).set({
+    //     username: user.displayName
+    // }, { merge: true })
 };

@@ -49,12 +49,13 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
 
         try {
             const users: User[] = await this.context?.getUsersInMonth(month)!;
+            
             const status = await this.context?.getPaidStatus(month)!;
 
-            const focusUserUID = this.state.focusUser?.uid ?? this.context?.selfUser?.uid;
+            const focusUserUID = this.state.focusUser?.metadata.uid ?? this.context?.selfUser?.metadata.uid;
 
-            const focusUser = users.find((user) => user.uid === focusUserUID)!;
-
+            const focusUser = users.find((user) => user.metadata.uid === focusUserUID)!;
+            
             this.setState({ users: users, focusUser: focusUser, month: month, paid: status, loading: false });
         } catch (err) {
             this.setState({loading: false});
@@ -94,7 +95,7 @@ class ExpenseScreen extends React.PureComponent<ExpenseScreenProps, ExpenseScree
 
             total += sum_
 
-            if (user.uid === this.state.focusUser!.uid) {
+            if (user.metadata.uid === this.state.focusUser!.metadata.uid) {
                 selfExpense = sum_
             }
         }

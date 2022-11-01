@@ -264,7 +264,10 @@ class AddItemsModal extends React.PureComponent<ModalProps, ModalState> {
                     alignItems: "center",
                     justifyContent: "center"
                 }}
-                onPress={this.createItem}
+                onPress={() => {
+                    this.createItem()
+                    this.inputRefs.name.current?.focus()
+                }}
             >
                 <LinearContainer
                     start={[0, 0]}

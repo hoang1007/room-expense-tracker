@@ -22,14 +22,14 @@ const UserBottomBar: React.FC<UserBottomBarProps> = ({
 
     const renderUser = (user: User) => {
         let color = COLORS.white;
-        if (currentUser && user.uid === currentUser.uid) {
+        if (currentUser && user.metadata.uid === currentUser.metadata.uid) {
             color = COLORS.lightBlue;
         }
         color = colorWithOpacity(color, 0.8).toString();
 
         return (
             <TouchableOpacity
-                key={user.uid}
+                key={user.metadata.uid}
                 style={styles.userContainer}
                 onPress={() => {
                     setCurrentUser(user);
